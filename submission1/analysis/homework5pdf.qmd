@@ -1,18 +1,27 @@
+---
+Title: "Homework 5"
+Subtitle: "Submission 1"
+Author: "Alekhya Pidugu"
+format:
+  pdf:
+    output-file: "pidugu-a-hwk5-1"
+    output-ext:  "pdf"
+---
+# Git Repository: https://github.com/AlekhyaPidugu/Homework5
+
+```{r results="hide", echo=FALSE, message=FALSE}
 if (!require("pacman")) install.packages("pacman")
 pacman::p_load(tidyverse, ggplot2, dplyr, lubridate, readr, readxl, hrbrthemes, fixest,
                scales, gganimate, gapminder, gifski, png, tufte, plotly, OECD,
                ggrepel, survey, foreign, devtools, pdftools, kableExtra, modelsummary,
                kableExtra)
 
+```
+
+\newpage
+# Question 1
+```{r results="hide", echo=FALSE, message=FALSE}
 data <- read.table("/Users/alekhyapidugu/Desktop/homework5/data/output/acs_medicaid.txt", header = TRUE, sep = "\t")
-
-# Data exploration
-head(data)
-summary(data)
-str(data)
-
-#QUESTION 1
-# Filter out rows with NA in 'ins_direct' column
 data <- data[complete.cases(data$ins_direct), ]
 
 # Group by year and calculate the average share of adult population with direct purchase health insurance
@@ -26,22 +35,21 @@ ggplot(insurance_share, aes(x = year, y = avg_ins_direct)) +
   geom_point() +
   labs(x = "Year", y = "Share of Adult Population with Direct Purchase Health Insurance", title = "Share of Adult Population with Direct Purchase Health Insurance Over Time")
 
+```
 
-#QUESTION 2 
-#The expansion of Medicaid eligibility under the ACA provided coverage to millions of low-income individuals
-# who might have otherwise purchased insurance directly from the market.
-#This could have reduced the pool of potential customers for direct purchase insurance plans.
+\newpage
+# Question 2
+ <br>  
+The expansion of Medicaid eligibility under the ACA provided coverage to millions of low-income individuals who might have otherwise purchased insurance directly from the market. This could have reduced the pool of potential customers for direct purchase insurance plans.<br>  
+ <br>  
+The ACA prohibits insurance companies from denying coverage or charging higher premiums based on pre-existing conditions. This provision made it easier for individuals with pre-existing conditions to obtain coverage through ACA-compliant plans offered in the marketplaces, potentially reducing the demand for direct purchase plans.<br>  
+ <br>  
+State-level regulations regarding insurance market practices, such as rate review requirements, benefit mandates, and network adequacy standards, can influence the availability and affordability of direct purchase insurance plans. Regulatory changes that increase the cost of offering or purchasing direct purchase plans could impact their viability in the market.
+<br>  
 
-#The ACA prohibits insurance companies from denying coverage or charging higher premiums based on pre-existing conditions. 
-#This provision made it easier for individuals with pre-existing conditions to obtain coverage through ACA-compliant plans 
-#offered in the marketplaces, potentially reducing the demand for direct purchase plans.
-
-#State-level regulations regarding insurance market practices, such as rate review requirements, benefit mandates, and 
-#network adequacy standards, can influence the availability and affordability of direct purchase insurance plans.
-#Regulatory changes that increase the cost of offering or purchasing direct purchase plans could impact their viability in the market.
-
-
-#QUESTION 3
+\newpage
+# Question 3
+```{r results="hide", echo=FALSE, message=FALSE}
 any(is.na(data))
 
 data$year <- as.factor(data$year)
@@ -56,7 +64,11 @@ ggplot(data, aes(x = year, y = uninsured, group = State, color = State)) +
   theme(legend.position = "none") +
   scale_x_discrete(breaks = unique(data$year))
 
-#QUESTION 4
+  ```
+
+\newpage
+# Question 4
+```{r results="hide", echo=FALSE, message=FALSE}
 medicaid_expansion_filtered <- data %>%
   filter(expand_year <= 2014) %>%
   mutate(medicaid_status = ifelse(expand_year <= 2014, "Expanded in 2014 or before", "Did not expand or expanded after 2014"))
@@ -69,9 +81,11 @@ ggplot(medicaid_expansion_filtered, aes(x = as.integer(as.character(year)), y = 
        y = "Number of Uninsured",
        color = "Medicaid Expansion Status") +
   theme_minimal()
+  ```
 
-
-#QUESTION 5
+  \newpage
+# Question 5
+```{r echo=FALSE, message=FALSE}
 data_2012_2015 <- data %>%
   filter(year %in% c("2012", "2015"))
 
@@ -85,8 +99,11 @@ dd_table <- pivot_wider(average_uninsured, names_from = year, values_from = avg_
 
 # Print the DD table
 print(dd_table)
+```
 
-#QUESTION 6
+\newpage
+# Question 6
+```{r echo=FALSE, message=FALSE}
 filtered_data <- data %>%
   filter(year %in% c("2013", "2014", "2015"), expand_year %in% c(2014, NA))
 
@@ -103,9 +120,11 @@ dd_model <- lm(uninsured / adult_pop ~ expand_ever + post_treatment + expansion_
 
 # Summarize the regression results
 summary(dd_model)
+```
 
-#QUESTION 7
-install.packages("lfe")
+\newpage
+# Question 7
+```{r  echo=FALSE, message=FALSE}
 library(lfe)
 
 # Estimate the DD regression model with state and year fixed effects using lfe
@@ -113,14 +132,20 @@ dd_model_lfe <- felm(uninsured / adult_pop ~ expand_ever + post_treatment + expa
 
 # Summarize the regression results
 summary(dd_model_lfe$coef)
+```
 
-#QUESTION 8 
+\newpage
+# Question 8
+```{r  echo=FALSE, message=FALSE}
 did_model <- felm(uninsured ~ expand + factor(State) + factor(year) | factor(State) + factor(year), data = data)
 
 # View the results
 summary(did_model)
+```
 
-#QUESTION 9 
+\newpage
+# Question 9
+```{r  echo=FALSE, message=FALSE}
 library(tidyverse)
 library(modelsummary)
 library(fixest)
@@ -137,8 +162,11 @@ mod.twfe <- feols(perc_unins~i(year, expand_ever, ref=2013) ,
 number9 <- iplot(mod.twfe, 
       xlab = 'Time to treatment',
       main = 'Event study')
+```
 
-#QUESTION 10 
+\newpage
+# Question 10
+```{r  echo=FALSE, message=FALSE}
 reg.dat <- data %>% 
   filter(!is.na(expand_ever)) %>%
   mutate(perc_unins = uninsured / adult_pop,
@@ -155,3 +183,4 @@ mod.twfe <- feols(perc_unins ~ i(event_time, expand_ever),
 iplot(mod.twfe, 
       xlab = 'Time to treatment',
       main = 'Event study')
+```

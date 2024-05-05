@@ -1,0 +1,216 @@
+---
+Title: "Homework 5"
+Subtitle: "Submission 3"
+Author: "Alekhya Pidugu"
+format:
+  pdf:
+    output-file: "pidugu-a-hwk5-3"
+    output-ext:  "pdf"
+---
+# Git Repository: https://github.com/AlekhyaPidugu/Homework5
+
+```{r results="hide", echo=FALSE, message=FALSE}
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(tidyverse, ggplot2, dplyr, lubridate, readr, readxl, hrbrthemes, fixest,
+               scales, gganimate, gapminder, gifski, png, tufte, plotly, OECD,
+               ggrepel, survey, foreign, devtools, pdftools, kableExtra, modelsummary,
+               kableExtra)
+
+```
+
+\newpage
+# Question 1
+```{r results="hide", echo=FALSE, message=FALSE}
+data <- read.table("/Users/alekhyapidugu/Desktop/homework5/data/output/acs_medicaid.txt", header = TRUE, sep = "\t")
+data <- data[complete.cases(data$ins_direct), ]
+
+# Group by year and calculate the average share of adult population with direct purchase health insurance
+insurance_share <- data %>%
+  group_by(year) %>%
+  summarize(avg_ins_direct = mean(ins_direct))
+
+# Plotting
+ggplot(insurance_share, aes(x = year, y = avg_ins_direct)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Year", y = "Share of Adult Population with Direct Purchase Health Insurance", title = "Share of Adult Population with Direct Purchase Health Insurance Over Time")
+
+```
+
+\newpage
+# Question 2
+ <br>  
+The expansion of Medicaid eligibility under the ACA provided coverage to millions of low-income individuals who might have otherwise purchased insurance directly from the market. This could have reduced the pool of potential customers for direct purchase insurance plans.<br>  
+ <br>  
+The ACA prohibits insurance companies from denying coverage or charging higher premiums based on pre-existing conditions. This provision made it easier for individuals with pre-existing conditions to obtain coverage through ACA-compliant plans offered in the marketplaces, potentially reducing the demand for direct purchase plans.<br>  
+ <br>  
+State-level regulations regarding insurance market practices, such as rate review requirements, benefit mandates, and network adequacy standards, can influence the availability and affordability of direct purchase insurance plans. Regulatory changes that increase the cost of offering or purchasing direct purchase plans could impact their viability in the market.
+<br>  
+
+\newpage
+# Question 3
+```{r results="hide", echo=FALSE, message=FALSE}
+data <- data %>%
+  mutate(perc_private = (ins_employer + ins_direct)/adult_pop,
+         perc_public = (ins_medicare + ins_medicaid)/adult_pop,
+         perc_ins = (adult_pop - uninsured)/adult_pop,
+         perc_unins = uninsured/adult_pop,
+         perc_employer = ins_employer/adult_pop,
+         perc_medicaid = ins_medicaid/adult_pop,
+         perc_medicare = ins_medicare/adult_pop,
+         perc_direct = ins_direct/adult_pop) %>%
+  filter(! State %in% c("Puerto Rico", "District of Columbia"))
+
+
+medicaid.plot <- data %>% group_by(year) %>% summarize(mean=mean(perc_medicaid)) %>%
+  ggplot(aes(x=year,y=mean)) + geom_line() + geom_point() + theme_bw() +
+  labs(
+    x="Year",
+    y="Fraction with Medicaid",
+    title="Share of Medicaid Insurance over Time"
+  ) +
+  geom_vline(xintercept=2013.5, color="red")
+
+medicaid.plot
+  ```
+
+\newpage
+# Question 4
+```{r results="hide", echo=FALSE, message=FALSE}
+ins.plot.dat <- data %>% filter(is.na(expand_year) | expand_year==2014) %>%
+  group_by(expand_ever, year) %>% summarize(mean=mean(perc_unins))
+
+uninsurance.plot <- ggplot(data=ins.plot.dat, aes(x=year,y=mean,group=expand_ever,linetype=expand_ever)) + 
+  geom_line() + geom_point() + theme_bw() +
+  geom_vline(xintercept=2013.5, color="red") +
+  geom_text(data = ins.plot.dat %>% filter(year == 2016), 
+            aes(label = c("Non-expansion","Expansion"),
+                x = year + 1,
+                y = mean)) +
+  guides(linetype="none") +
+  labs(
+    x="Year",
+    y="Fraction Uninsured",
+    title="Share of Uninsured over Time"
+  )
+
+  uninsurance.plot
+  ```
+
+\newpage
+# Question 5
+```{r echo=FALSE, message=FALSE}
+
+dd.table <- data %>% 
+  filter(is.na(expand_year) | expand_year==2014) %>%
+  filter(year %in% c(2012, 2015)) %>%  
+  group_by(expand_ever, year) %>%
+  summarize(uninsured=mean(perc_unins))
+
+dd.table <- pivot_wider(dd.table, names_from="year", names_prefix="year", values_from="uninsured") %>% 
+  ungroup() %>%
+  mutate(expand_ever=case_when(
+    expand_ever==FALSE ~ 'Non-expansion',
+    expand_ever==TRUE ~ 'Expansion')
+  ) %>%
+  rename(Group=expand_ever,
+         Pre=year2012,
+         Post=year2015)
+
+#| echo: false
+#| label: tbl-ddtable
+#| tbl-cap: "DD Table for Medicaid Expansion"
+
+knitr::kable(dd.table, 
+             col.names=c("Group", "Pre", "Post"),
+             digits=2,
+             booktabs = TRUE,
+             escape=F,
+             align="l",
+             format='latex') %>% 
+  kable_styling(full_width=F,
+                latex_options="hold_position")
+```
+
+\newpage
+# Question 6
+```{r echo=FALSE, message=FALSE}
+reg.data <- data %>% mutate(post=(year>=2014),
+                                  treat=post*expand_ever) %>%
+  filter(is.na(expand_year) | expand_year==2014)
+
+q6 <- lm(perc_unins~post + expand_ever + treat, data=reg.data)
+
+q6
+
+```
+
+\newpage
+# Question 7
+```{r  echo=FALSE, message=FALSE}
+reg.data <- data %>% mutate(post=(year>=2014),
+                                  treat=post*expand_ever) %>%
+  filter(is.na(expand_year) | expand_year==2014)
+
+q7 <- feols(perc_unins~treat | State + year, data=reg.data)
+
+q7
+
+```
+
+\newpage
+# Question 8
+```{r  echo=FALSE, message=FALSE}
+reg.data2 <- data %>% 
+  mutate(treat=case_when(
+    year>=expand_year & !is.na(expand_year) ~ 1,
+    is.na(expand_year) ~ 0,
+    year<expand_year & !is.na(expand_year) ~ 0)
+  )
+q8 <- feols(perc_unins~treat | State + year, data=reg.data2)
+q8
+
+```
+
+\newpage
+# Question 9
+```{r  echo=FALSE, message=FALSE}
+library(tidyverse)
+library(modelsummary)
+library(fixest)
+reg.dat <- data %>% 
+  filter(expand_year==2014 | is.na(expand_year), !is.na(expand_ever)) %>%
+  mutate(perc_unins=uninsured/adult_pop,
+         post = (year>=2014), 
+         treat=post*expand_ever)
+
+mod.twfe <- feols(perc_unins~i(year, expand_ever, ref=2013) ,
+                  cluster=~State,
+                  data=reg.dat)
+
+number9 <- iplot(mod.twfe, 
+      xlab = 'Time to treatment',
+      main = 'Event study')
+```
+
+\newpage
+# Question 10
+```{r  echo=FALSE, message=FALSE}
+reg.dat <- data %>% 
+  filter(!is.na(expand_ever)) %>%
+  mutate(perc_unins = uninsured / adult_pop,
+         post = year >= 2014,
+         expand_year = ifelse(is.na(expand_year), year, expand_year),
+         event_time = expand_year - 2014)  # Align all states to event time (2014)
+
+# Run the fixed effects regression with treatment effect
+mod.twfe <- feols(perc_unins ~ i(event_time, expand_ever), 
+                  cluster = ~State,
+                  data = reg.dat)
+
+# Create the event study plot
+iplot(mod.twfe, 
+      xlab = 'Time to treatment',
+      main = 'Event study')
+
+```
